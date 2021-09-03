@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '80'
+    spec:
+      containers:
+      - name: {{ .Release.Name }}
+        image: {{ .Values.image }}
+        env:
+          - name: KAFKA_SASL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.confluentcloudsecret.name }} 
+                key: KAFKA_SASL_PASSWORD
+          - name: SCHEMA_REGISTRY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.confluentcloudsecret.name }} 
+                key: SCHEMA_REGISTRY_PASSWORD
+          - name: APPINSIGHTS_INSTRUMENTATIONKEY
+            value: {{ .Values.applicationinsight.key }}
+          - name: App_Swagger__RoutePrefix
+            value: {{ .Values.swaggerapi.routeprefix }}
+          - name: App_dfid__url
+            value: {{ .Values.dfid.url }}
+          - name: App_KafkaProducerOtherOptions__TopicName
+            value: {{ .Values.topicname }}
+          - name: App_SchemaRegistryOptions__Url
+            value: {{ .Values.schemaregistry.url }}
+          - name: App_KafkaConnectionOptions__BootstrapServers
+            value: {{ .Values.bootstrapservers.ip }}            
+        resources:
+          requests:
+            memory: "250Mi"
+            cpu: "100m"
+          limits:
+            memory: "1000Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+    service: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: {{ .Release.Name }}

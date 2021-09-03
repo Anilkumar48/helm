@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tax-output-streams-service
+  namespace: dev-tpg
+spec:
+  selector:
+    app: tax-output-streams
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tax-output-streams-deploy
+  namespace: dev-tpg
+spec:
+  selector:
+    matchLabels:
+      app: tax-output-streams
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: tax-output-streams
+    spec:      
+      containers:
+        - name: tax-output-streams
+          image: app505deploycr.azurecr.io/ceridiangoldengate/ceridiangoldengatetaxoutput-streams:latest
+          stdin: true
+          tty: true
+          env:
+            - name : spring.app.name
+              value: Tap-TaxOutput-Streams            
+          ports:
+            - containerPort: 8000

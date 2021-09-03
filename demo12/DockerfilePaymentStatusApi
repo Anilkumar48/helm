@@ -1,0 +1,68 @@
+FROM mcr.microsoft.com/azure-cli
+
+RUN wget https://get.helm.sh/helm-v3.0.0-linux-amd64.tar.gz && \
+    tar -zxvf helm-v3.0.0-linux-amd64.tar.gz && \
+    mv linux-amd64/helm /bin/helm 
+RUN curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 && \
+    install skaffold /usr/local/bin/
+RUN az aks install-cli 
+
+ARG SP_USER
+ARG SP_PASS 
+ARG SP_TENANT
+ARG SP_SUBSCRIPTION
+ARG KAFKA_USER
+ARG RESOURCE_GROUP_NAME
+ARG KUBERNETES_CLUSTER_NAME
+ARG ACR
+ARG NAMESPACE
+ARG BUILD_NUMBER
+ARG APPINSIGHTSINSTRUMENTATIONKEY
+ARG DEPLOYEMNTENV
+ARG DNS_LOCATION
+ARG DNS_NAME
+ARG ROUTEPREFIX
+ARG DFID_URL
+ARG TOPICNAME
+ARG SCHEMAREGISTRY_URL
+ARG BOOTSTRAPSERVERS
+ARG KAFKA_SASL_PASSWORD
+ARG CONFLUENTCLOUDSECRET
+ARG ELASTICSEARCH_NODEPOOLURI
+ARG ELASTICSEARCH_USERNAME
+ARG ELASTICSEARCH_PASSWORD
+ARG ELASTICSEARCH_DEFAULTINDEX
+
+
+RUN az login --service-principal -u $SP_USER -p $SP_PASS --tenant $SP_TENANT && \
+    az account set --subscription $SP_SUBSCRIPTION && \   
+    az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $KUBERNETES_CLUSTER_NAME --admin
+    
+WORKDIR /helm_paymentstatus_api
+COPY ./helm_paymentstatus_api .
+
+RUN helm upgrade goldengatepaymentstatusapi --install . -n $NAMESPACE \
+	--set=image=$ACR.azurecr.io/ceridiangoldengate/ceridiangoldengatetaptpgpaymentapi:$BUILD_NUMBER \
+	--set=kafkauser.name=$KAFKA_USER \
+	--set=applicationinsight.key=$APPINSIGHTSINSTRUMENTATIONKEY \
+	--set=deployment.env=$DEPLOYEMNTENV \
+	--set=dns.location=$DNS_LOCATION \
+	--set=dns.name=$DNS_NAME \
+	--set=swaggerapi.routeprefix=$ROUTEPREFIX \
+	--set=dfid.url=$DFID_URL \
+	--set=topicname=$TOPICNAME \
+	--set=schemaregistry.url=$SCHEMAREGISTRY_URL \
+	--set=bootstrapservers.ip=$BOOTSTRAPSERVERS \
+	--set=kafkasasl.password=$KAFKA_SASL_PASSWORD \
+	--set=confluentcloudsecret.name=$CONFLUENTCLOUDSECRET \
+	--set=confluentcloudsecret.name=$CONFLUENTCLOUDSECRET \
+	--set=elasticsearch.nodepooluri=$ELASTICSEARCH_NODEPOOLURI \
+	--set=elasticsearch.username=$ELASTICSEARCH_USERNAME \
+	--set=elasticsearch.password=$ELASTICSEARCH_PASSWORD \
+	--set=elasticsearch.defaultindex=$ELASTICSEARCH_DEFAULTINDEX
+	
+
+
+
+
+

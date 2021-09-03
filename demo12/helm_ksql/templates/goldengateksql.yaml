@@ -1,0 +1,88 @@
+# KSQL Server Configuration
+# Prerequisites:
+#   - Kafka cluster 
+#   - Kubernetes secret to access cluster
+# Once deployed (kubectl create -f thisfile.yaml), use the following command to start a KSQL client cli instance:
+# kubectl run tmp-ksql-cli --rm -i --tty --image confluentinc/cp-ksqldb-cli:6.0.1 http://ksql-server-service.poc-kafkaload-bo:8088
+# or to attach to existing CLI pod: 
+# kubectl exec --stdin --tty tmp-ksql-cli -- ksql http://ksql-server-service.poc-kafkaload-bo:8088
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-service
+spec:
+  selector:
+    app: {{ .Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 8089
+      targetPort: 8089
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      volumes:
+      - name: kafka-user-secret
+        secret:
+          secretName: kafka
+      containers:
+      - name: {{ .Release.Name }}
+        image: confluentinc/cp-ksqldb-server:6.1.1 #confluentinc/ksqldb-server:0.13.0
+        stdin: true
+        tty: true
+        env:
+        - name: KSQL_BOOTSTRAP_SERVERS
+          value: {{ .Values.bootstrapservers }}    #"dev-kafka-kafka-bootstrap.kafka:9093" # use bootstrap internal communication port
+        - name: KSQL_LISTENERS
+          value: "http://0.0.0.0:8089" # make sure url doesn't end with / 
+        - name: KSQL_KSQL_SERVICE_ID
+          value: {{ .Values.ksql.serviceid }}   #"devksql_service"
+        - name: KSQL_KSQL_SCHEMA_REGISTRY_URL
+          value: {{ .Values.schemaregistry.url }}   #"http://schema-registry-service.poc-kafkaload-bo:8081"
+        - name: KSQL_SECURITY_PROTOCOL
+          value: {{ .Values.ksql.securityprotocol }}  #"SSL"
+        - name: KSQL_SSL_CLIENT_AUTH
+          value: "true"
+        - name: KSQL_SSL_KEYSTORE_LOCATION
+          value: "/usr/secrets/keystore.jks"
+        - name: KSQL_SSL_KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka
+              key: keystore.pass
+        - name: KSQL_SSL_TRUSTSTORE_LOCATION
+          value: "/usr/secrets/truststore.jks"
+        - name: KSQL_SSL_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka
+              key: truststore.pass
+        - name: KSQL_SSL_KEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka
+              key: password
+        volumeMounts:
+        - name: kafka-user-secret
+          mountPath: "/usr/secrets/"
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "100m"
+          limits:
+            memory: "2000Mi"
+            cpu: "1000m"
+        ports:
+        - containerPort: 8089

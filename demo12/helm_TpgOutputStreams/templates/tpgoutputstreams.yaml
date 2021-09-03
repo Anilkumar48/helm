@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tpg-output-streams-deploy
+  namespace: dev-tpg
+spec:
+  selector:
+    matchLabels:
+      app: tpg-output-streams
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: tpg-output-streams
+    spec:
+      containers:
+      - name: {{ .Release.Name }}
+        image: {{ .Values.image }}
+        stdin: true
+        tty: true
+        env:
+          - name : spring.app.name
+            value: Tap-TpgOutput-Streams
+        ports:
+            - containerPort: 8000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tpg-output-streams-service
+  namespace: dev-tpg
+spec:
+  selector:
+    app: tpg-output-streams
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
